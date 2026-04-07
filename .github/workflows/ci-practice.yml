@@ -1,0 +1,62 @@
+name: CI Practice - Validation and Fix
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: '0 13 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      simulate_failure:
+        description: 'Set true to force an intentional failure'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Simulate intentional failure (exercise)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.simulate_failure == 'true' }}
+        run: |
+          echo "Intentional failure enabled for the exercise"
+          exit 1
+
+      - name: Verify app imports
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.simulate_failure != 'true' }}
+        run: python -c "import src.app; print('Import check passed')"
+
+      - name: Run tests
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.simulate_failure != 'true' }}
+        run: python -m pytest -q
+
+      - name: Success message
+        if: ${{ success() }}
+        run: echo "La fase anterior fue exitosa"
+
+      - name: Failure message
+        if: ${{ failure() }}
+        run: echo "Algo fallo en la fase anterior"
